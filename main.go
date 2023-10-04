@@ -52,23 +52,28 @@ func Imposter(c *cli.Context) {
 		fmt.Println(err)
 		return
 	}
+
 	gqlClient, err := api.DefaultGraphQLClient()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	owner, name, err := SelectUpdateRepository(c.String("repository"))
 	fmt.Printf("owner: %v\n", owner)
 	fmt.Printf("name: %v\n", name)
+
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	repoId, patterns, err := GetRepositoryInfo(gqlClient, owner, name)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
 	if err := RegisterBranchProtectionRule(gqlClient, repoId, patterns, &config); err != nil {
 		fmt.Println(err)
 		return
@@ -78,10 +83,14 @@ func Imposter(c *cli.Context) {
 func SelectUpdateRepository(repo string) (string, string, error) {
 	// if commandArgs exist, use it
 	if repo != "" {
+		// if commandArgs is not in the format(owner/name), error
 		repoArr := strings.Split(repo, "/")
-		if len(repoArr) != 2 {
+		ownerNameNum := 2
+
+		if len(repoArr) != ownerNameNum {
 			return "", "", fmt.Errorf("repository name is not specified")
 		}
+
 		return repoArr[0], repoArr[1], nil
 	}
 	// if commandArgs not exist, use current directory info
@@ -90,6 +99,7 @@ func SelectUpdateRepository(repo string) (string, string, error) {
 		// if both not exist, error
 		return "", "", fmt.Errorf("repository name is not specified")
 	}
+
 	return cr.Owner, cr.Name, nil
 }
 
@@ -109,19 +119,23 @@ func GetRepositoryInfo(gqlClient *api.GraphQLClient, owner string, name string) 
 			} `graphql:"branchProtectionRules(first: 100)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
+
 	variables := map[string]interface{}{
 		"owner": githubv4.String(owner),
 		"name":  githubv4.String(name),
 	}
+
 	if err := gqlClient.Query("GetRepoID", &query, variables); err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to get repository info: %w", err)
 	}
+
 	var branchProtectionRules []struct {
 		ID      string
 		Pattern string
 	}
 
 	branchProtectionRules = append(branchProtectionRules, query.Repository.BranchProtectionRules.Nodes...)
+
 	return query.Repository.ID, branchProtectionRules, nil
 }
 
@@ -140,16 +154,19 @@ func RegisterBranchProtectionRule(gqlClient *api.GraphQLClient, repoId string, b
 		id := containsRule(branchProtectionRules, string(rule.Pattern))
 		if id != "" {
 			fmt.Printf("update %s\n", rule.Pattern)
+
 			if err := UpdateBranchProtectionRule(gqlClient, id, rule); err != nil {
 				return err
 			}
 		} else {
 			fmt.Printf("create %s\n", rule.Pattern)
+
 			if err := CreateBranchProtectionRule(gqlClient, repoId, rule); err != nil {
 				return err
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -159,6 +176,7 @@ func UpdateBranchProtectionRule(gqlClient *api.GraphQLClient, ruleId string, rul
 			ClientMutationId githubv4.String
 		} `graphql:"updateBranchProtectionRule(input: $input)"`
 	}
+
 	variables := map[string]interface{}{
 		"input": githubv4.UpdateBranchProtectionRuleInput{
 			BranchProtectionRuleID:         ruleId,
@@ -193,8 +211,9 @@ func UpdateBranchProtectionRule(gqlClient *api.GraphQLClient, ruleId string, rul
 		},
 	}
 	if err := gqlClient.Mutate("UpdateBranchProtectionRule", &mutation, variables); err != nil {
-		return err
+		return fmt.Errorf("failed to update branch protection rule: %w", err)
 	}
+
 	return nil
 }
 
@@ -204,6 +223,7 @@ func CreateBranchProtectionRule(gqlClient *api.GraphQLClient, repoId string, rul
 			ClientMutationId githubv4.String
 		} `graphql:"createBranchProtectionRule(input: $input)"`
 	}
+
 	variables := map[string]interface{}{
 		"input": githubv4.CreateBranchProtectionRuleInput{
 			RepositoryID:                 repoId,
@@ -240,9 +260,11 @@ func CreateBranchProtectionRule(gqlClient *api.GraphQLClient, repoId string, rul
 			ClientMutationID:        rule.ClientMutationID,
 		},
 	}
+
 	if err := gqlClient.Mutate("CreateBranchProtectionRule", &mutation, variables); err != nil {
-		return err
+		return fmt.Errorf("failed to create branch protection rule: %w", err)
 	}
+
 	return nil
 }
 
@@ -256,5 +278,6 @@ func containsRule(rules []struct {
 			return rule.ID
 		}
 	}
+
 	return ""
 }

@@ -1,0 +1,35 @@
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - bodyclose
+    - dogsled
+    - dupl
+    - durationcheck
+    - errorlint
+    - forcetypeassert
+    - funlen
+    - gochecknoinits
+    - goconst
+    - godot
+    - gofmt
+    - goimports
+    - gomnd
+    - gosec
+    - makezero
+    - nilerr
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+    - wsl
+    - wrapcheck
